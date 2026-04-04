@@ -161,6 +161,63 @@ export function LoginClient({ redirectUri }: LoginClientProps) {
     );
   }
 
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        await loginWithGoogle.mutateAsync({
+          access_token: tokenResponse.access_token,
+        });
+        toast.success("Welcome back!");
+        router.push(getRedirectPath());
+      } catch (error) {
+        const message =
+          error instanceof ApiError
+            ? error.message
+            : "Google Login failed. Please try again.";
+        toast.error(message);
+      }
+    },
+    onError: () => {
+      toast.error("Google login failed. Please try again.");
+    },
+  });
+
+  const handleGoogleLogin = () => {
+    googleLogin();
+  };
+
+  const handleAppleLogin = async () => {
+    try {
+      const response = await appleAuthHelpers.signIn({
+        authOptions: {
+          clientId: process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || "",
+          scope: "email name",
+          redirectURI:
+            typeof window !== "undefined" ? window.location.origin : "",
+          usePopup: true,
+        },
+      });
+
+      if (response && response.authorization) {
+        await loginWithApple.mutateAsync(response.authorization);
+        toast.success("Welcome back!");
+        router.push(getRedirectPath());
+      } else {
+        toast.error("Apple Login failed. No authorization returned.");
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      } else if (error && typeof error === "object" && "error" in error) {
+        toast.error(`Apple Login failed: ${String((error as any).error)}`);
+      } else {
+        toast.error(
+          "Apple SDK hasn't fully loaded yet or login was cancelled. Please try again.",
+        );
+      }
+    }
+  };
+
   return (
     <>
       <Script
